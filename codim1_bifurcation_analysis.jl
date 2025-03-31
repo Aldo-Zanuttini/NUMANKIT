@@ -152,79 +152,6 @@ function mesp2(A,B;M=eye(size(A,1)),k=2,tol=1e-6,maxdist=Inf,maxiter=Inf)
     return (lambda=lambda,Z=Z,mu=mu,y=y,flag=flag)
 end
 
-############################################################################ FUNCTION:  min_aug_system_zero_eigval ############################################################################
-#                                                                                 Given a system of the form
-#                                                                      Mu_t=f(u,lambda),  Df(u,lambda)=df(u,lambda)/du     (1)
-#                                                           and its associated augmented form used for continuation of equilibria
-#                                                            Mu_t=F(x),   Fx(x)=[Df(u,lambda), df(u,lambda)/dlambda],   x=(u,lambda)    (2)
-#                                                                this function builds a new augmented system from (2) of the form
-#                                                                                      G(x)=[F(x);g(x)]        (3)
-#                                                                               where g(x) is the solution of
-#                                                [Df(u,lambda), p; 0 q']*[w(u,lambda);g(u,lambda)]=[0;1], where Df(u,lambda)*q=Df(u,lambda)'p=0.
-#                        this system is nonsingular when Df(u,lambda) is singular. The jacobian is computed in the associated function min_aug_jacobian_zero_eigval.
-#                                                           This function is used mainly as support for the locate_fold() function.
-# INPUTS
-# x......................................................................................................................a point suitable for system (2) at which system (3) is to be evaluated
-# F...................................................................................................................................................function handle for the RHS of system (2)
-# Fx..................................................................................................................................function handle for the jacobian of the RHS of system (2)
-# OUTPUTS
-# G......................................................................................................................................the value of the function of system (3) at the point x
-function min_aug_system_zero_eigval(x,F,Fx;M=eye(length(x)-1))
-    Df=Fx(x)[:,1:end-1];
-    n=size(Df,1);
-    if n>5
-        v=eigs(Df,M,nev=1,which=:SM)[2];
-        w=eigs(Df',M',nev=1,which=:SM)[2];
-    else
-        v=eigen(Df,Matrix(M));
-        v=v.vectors[:,argmin(abs.(v.values))];
-        w=eigen(Df',Matrix(M));
-        w=w.vectors[:,argmin(abs.(w.values))];
-    end
-    w=w/(w'*v);
-    g=[Df w;v' 0]\[zeros(n);1];
-    g=g[end];
-    G=[F(x);g]
-    return G
-end
-
-########################################################################### FUNCTION:  min_aug_jacobian_zero_eigval ###########################################################################
-#                                                                                 Given a system of the form
-#                                                                      Mu_t=f(u,lambda),  Df(u,lambda)=df(u,lambda)/du     (1)
-#                                                           and its associated augmented form used for continuation of equilibria
-#                                                            Mu_t=F(x),   Fx(x)=[Df(u,lambda), df(u,lambda)/dlambda],   x=(u,lambda)    (2)
-#                                                                this function builds the jacobian of the new augmented system
-#                                                                                        G(x)=[F(x);g(x)]                      (3)
-#                                                             (for more info on this system see: min_aug_system_zero_eigval(...))
-#                                                                                 this jacobian has the form
-#                                                                                    DG(x)=[Fx(x);dg/dx]
-#                                                      where dg/dx=-p'*(dFx/dx)*q and (p,q) are such that Df(u,lambda)*q=Df(u,lambda)'*p
-#                                                           This function is used mainly as support for the locate_fold() function.
-# INPUTS
-# x......................................................................................................................a point suitable for system (2) at which system (3) is to be evaluated
-# F...................................................................................................................................................function handle for the RHS of system (2)
-# Fx..................................................................................................................................function handle for the jacobian of the RHS of system (2)
-# OUTPUTS
-# DG.....................................................................................................................................the value of the jacobian of system (3) at the point x
-function min_aug_jacobian_zero_eigval(x,F,Fx;M=eye(length(x)-1))
-    Df=Fx(x)[:,1:end-1];
-    n=size(Df,1);
-    if n>5
-        v=eigs(Df,M,nev=1,which=:SM)[2];
-        w=eigs(Df',M',nev=1,which=:SM)[2];
-    else
-        v=eigen(Df,Matrix(M));
-        v=v.vectors[:,argmin(abs.(v.values))];
-        w=eigen(Df',Matrix(M));
-        w=w.vectors[:,argmin(abs.(w.values))];
-    end
-    v=v/(w'*v);
-    Bq=(Fx(x+10^(-8)*norm(x)*[v;0])-Fx(x-10^(-8)*norm(x)*[v;0]))/(2*10^(-8)*norm(x));
-    gprime=-w'*Bq;
-    DG=[Fx(x);gprime]
-    return DG
-end
-
 ############################################################################## FUNCTION:  locate_zero_eigenvalue ##############################################################################
 #                                                                     Locates the nearest Fold bifurcation/Branchpoint of
 #                                                                                   M*u_t=f(u,lambda)    (1)
@@ -241,8 +168,8 @@ end
 # mu..........................................................................................................................the eigenvalue of smallest magnitude of system (1) at the point X
 # flag........................................................................................................a string telling you if the method has converged and if so in how many iterations
 function locate_zero_eigenvalue(x0,F,Fx;M=eye(length(x0)-1),tol=1e-6,maxiter=100)
-    Ftilde(x)=min_aug_system_zero_eigval(x,F,Fx;M);
-    Fxtilde(x)=min_aug_jacobian_zero_eigval(x,F,Fx;M);
+    Ftilde(x)=min_aug_system_zero_eigval(x,F,Fx;M=M);
+    Fxtilde(x)=min_aug_jacobian_zero_eigval(x,F,Fx;M=M);
     if abs(eigs(Fxtilde(x0),nev=1,which=:SM)[1][1])<1e-16 || any(isnan.(Fxtilde(x0)))
         return (X=NaN*ones(length(x0)), mu=NaN, flag= "not converged")
     end
@@ -252,9 +179,9 @@ function locate_zero_eigenvalue(x0,F,Fx;M=eye(length(x0)-1),tol=1e-6,maxiter=100
     if size(Fx(X),1)<5
         accu=minimum(abs.(eigen(Fx(X)[:,1:end-1]).values));
     else
-        accu=eigs(Fx(X)[:,1:end-1],nev=1,which=:SM);
+        accu=eigs(Fx(X)[:,1:end-1],nev=1,which=:SM)[1];
     end
-    return (X=X, mu=accu, flag="converged")
+    return (X=X, mu=accu, flag=flag)
 end
 
 #################################################################################### FUNCTION: detect_fold ####################################################################################
@@ -291,7 +218,7 @@ end
 # OUTPUTS
 # .possible_branchpoints.......................................................-........................A matrix whose columns are approximate possible branchpoints of an equilibrium manifold
 # .flag..............................................................................................A string telling the user if the method found any possible branchpoints and if so how many
-function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1],1)))
+function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1,1])))
     indexes_of_possible_branchpoints=0;
     possible_branchpoints=0;
     flag="none";
@@ -323,51 +250,124 @@ function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1],1)))
     return (possible_branchpoints=possible_branchpoints,flag=flag)
 end
 
+#################################################################################### FUNCTION: locate_hopf ####################################################################################
+#                                                                           Locates the nearest Hopf bifurcation
+#                                                                                   M*u_t=f(u,lambda)    (1)
+#                                                   by applying newton to a minimally augmented system (see min_aug_system_hopf(...))
+# INPUTS
+# x0.....................................................................................................................a starting point on an equilibrium manifold near a presumed hopf point
+# F.....................................................................................................................the augmented version of the RHS of (1): F(X)=f(u,lambda), X=[u;lambda]
+# Fx............................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M...........................................................................................................................................................the mass matrix of the system (1)
+# tol.................................................................................................................tolerance of the method, optional: if not given it is assumed tol=10^(-6)
+# maxiter...............................................................................................................................maximum number of iterations, optional: defaults to 100
+# OUTPUTS
+# X....................................................fold point on the bifurcation diagram X=[x*;lambda*] where x* is an equilibrium of (1) and lambda is the value at which the fold happens
+# mu...........................................................................................................................................the hopf eigenvalue of system (1) at the point X
+# vector................................................the eigenvector of the jacobian of system (1) associated with the hopf eigenvalue (can be used to determine the stability of the cycle)
+# flag........................................................................................................a string telling you if the method has converged and if so in how many iterations
+function locate_hopf(x0,F,Fx;M=eye(length(x0)-2),tol=1e-6,maxiter=100)
+    Ftilde(x)=min_aug_system_hopf(x,F,Fx;M=M);
+    Fxtilde(x)=min_aug_jacobian_hopf(x,F,Fx;M=M);
+    X=newton(x0,Ftilde,Fxtilde,tol,maxiter);
+    flag=X.flag;
+    X=X.x;
+    omega=X[end];
+    X=X[1:end-1];
+    Df=Fx(X)[:,1:end-1]-M*1.0im*omega;
+    if size(Fx(X),1)<5
+        dummy=eigen(Df);
+        accu=minimum(abs.(dummy.values));
+        vector=eigen(Df).vectors[:,argmin(abs.(dummy.values))];
+    else
+        accu,vector=eigs(Df,nev=1,which=:SM);
+    end
+    return (X=X, mu=accu+omega, vector=vector, flag=flag)
+end
+
 ##################################################################################### FUNCTION: find_hopf #####################################################################################
 #                                                 Finds approximate hopf points in a system using the equilibrium manifold as initial guess
 # INPUTS
 # Branch.......................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
-# F......................................................................The augmented RHS function (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
 # Fx.........................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
 # M..........................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
 # tol...............................................................................................................The tolerance with which we want to find the hopf points (defaults to 1e-6)
-# maxiter.............................................................................................................The maximum number of iterations for the mesp algorithm (defaults to Inf)
-# k.....................................................................................................................The size of the projected problem in the mesp algorithm (defaults to 2)
-# old_hopf....................................................................Don't touch this: the function is recursive and needs input from its previous iteration, this is what old_hopf is
+# maxiter............................................................................................................The maximum number of iterations for the mesp algorithms (defaults to Inf)
+# k....................................................................................................................The size of the projected problem in the mesp2 algorithm (defaults to 2)
 # OUTPUTS
-# .possible_hopf.......................................................-........................................A matrix whose columns are approximate possible hopf points of the given system
+# .approx_H.......................................................-...........................A matrix whose columns are X_i=[point on the equilibrium manifold; hopf_eigenvalue of this point]
 # .flag...............................................................................................A string telling the user if the method found any possible hopf points and if so how many
-function find_hopf(Branch,F,Fx;M=eye(size(Branch[1:end-1,1],1)),tol=1e-6,maxiter=Inf,k=2,old_hopf=ones(size(M,1)+1)*NaN)
-    if size(Branch,2)>0
-        A,B=LinearizedJacobian(Fx,Branch[:,1]);
-        dummy=mesp2(A,B,M=M,k=k,tol=tol,maxdist=norm(Branch[:,1]-Branch[:,end]),maxiter=maxiter);
-        flag1=dummy.flag;
-        NewBranch=Branch;
-        if flag1!="not converged"
-            lambda=Branch[end,1]+dummy.lambda;
-            guess=Branch[:,argmin(abs(Branch[end,i]-lambda) for i=1:size(Branch,2))];
-            possible_hopf=init_cont(lambda,F,Fx,guess[1:end-1]).X0;
-            mu=dummy.mu;
-            RCSS=norm(Branch[:,1]-possible_hopf);
-            distances=[norm(Branch[:,i]-possible_hopf) for i=1:size(Branch,2)];
-            NewBranch=Branch[:,sortperm(distances)];
-            dummy=find_hopf(NewBranch,F,Fx;M=M,tol=tol,maxiter=maxiter,k=k,old_hopf=possible_hopf[:,end]);
-            if norm(dummy.possible_hopf)<Inf
-                possible_hopf=[possible_hopf dummy.possible_hopf];
-                mu=[mu dummy.mu];
-                lambda=[lambda dummy.lambda];
+function find_hopf(Branch,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=100,k=2)
+    avgstepsize=sum(norm.(eachcol(Branch[:,1:end-1]-Branch[:,2:end])))/size(Branch,2);
+    avglambdadist=sum(abs.(Branch[end,1:end-1]-Branch[end,2:end]))/size(Branch,2);
+    mespBranch=Branch[:,sortperm(Branch[end,:])];
+    left_boundary=mespBranch[end,1];
+    right_boundary=mespBranch[end,end];
+    not_converged_left=false;
+    not_converged_right=false;
+    reversed=false;
+    Mu=zeros(1,0);
+    approx_H=zeros(size(Branch,1),0);
+    i=0;
+    while right_boundary-left_boundary>avgstepsize
+        A,B=LinearizedJacobian(Fx,mespBranch[:,1]);
+        lambda,Z,mu,y,flag=mesp2(A,B,M=M,k=k,tol=tol,maxdist=abs(mespBranch[end,1]-mespBranch[end,end]),maxiter=maxiter);
+        alpha=lambda+mespBranch[end,1];
+        if flag!="not converged" && alpha<right_boundary && alpha>left_boundary
+            i=i+1;
+            alpha_distances=abs.(mespBranch[end,:] .- alpha);
+            approx_H=[approx_H mespBranch[:,argmin(alpha_distances)]];
+            true_distances=norm.(eachcol(mespBranch .- mespBranch[:,argmin(alpha_distances)]));
+            Mu=[Mu mu];
+            mespBranch=mespBranch[:,argmin(alpha_distances):end];
+            for j=1:size(mespBranch,2)
+                if norm(approx_H[:,i]-mespBranch[:,j])>avgstepsize && abs(approx_H[end,i]-mespBranch[end,j])<avglambdadist
+                    approx_H=[approx_H mespBranch[:,j]];
+                    Mu=[Mu mu];
+                end
             end
-            flag2=string(size(possible_hopf,2)," possible hopf points found");
+            if reversed==false
+                left_boundary=alpha;
+            else
+                right_boundary=alpha;
+            end
         else
-            flag2="not converged";
-            possible_hopf=NaN*ones(size(Branch,1));
-            mu=NaN;
-            lambda=NaN;
+            if reversed==false
+                not_converged_left=true;
+            else
+                not_converged_right=true;
+            end
         end
-        return (possible_hopf=possible_hopf, mu=mu, lambda=lambda, flag=flag2)
-    else
-        return (possible_hopf=NaN*ones(size(Branch,1)), mu=NaN, lambda=NaN, flag="that's it!")
+        if reversed==false
+            mespBranch=mespBranch[:,mespBranch[end,:] .>left_boundary];
+            mespBranch=reverse(mespBranch,dims=2);
+            reversed=true;
+        else
+            mespBranch=mespBranch[:,mespBranch[end,:] .<right_boundary];
+            mespBranch=reverse(mespBranch,dims=2);
+            reversed=false;
+        end
+        if not_converged_left==true && not_converged_right==true
+            break
+        end
     end
+    if size(approx_H,2)==0
+        flag="not converged";
+    else
+        tokeep=trues(size(approx_H,2));
+        for j=1:size(approx_H,2)
+            for l=j+1:size(approx_H,2)
+                if norm(approx_H[:,l]-approx_H[:,j])<=avgstepsize
+                    tokeep[l]=false;
+                end
+            end
+        end
+        approx_H=approx_H[:,tokeep];
+        Mu=Mu[tokeep];
+        approx_H=[approx_H;imag(Mu)'];
+        flag=string(size(approx_H,2), " approximate hopf points found");
+    end
+    return (approx_H=approx_H,flag=flag)
 end
 
 ################################################################################## FUNCTION:  analyse_branch ##################################################################################
