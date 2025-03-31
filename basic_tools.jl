@@ -20,11 +20,11 @@ end
 function eye(n)
     return spdiagm(ones(n))
 end
-############# FUNCTION: nmder #############
+############ FUNCTION:  dirder ############
 # numerical derivative of order ord of a
 # function f, at a point x, in a direction
 # v
-function nmder(f,x,v,ord)
+function dirder(f,x,v,ord)
     h=10^(-16);
     if ord==1
         h=h^(1/2)*norm(x);

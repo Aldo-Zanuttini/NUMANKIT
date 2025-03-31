@@ -44,8 +44,8 @@ end
 # ord............................order of accuracy of the corrections
 #                                (2<=ord<=5), for ord>2 derivatives
 #                                will be calculated numerically
-#                                (see nmder() function in the
-#                                general_algebra.jl file)
+#                                (see dirder() function in the
+#                                basic_tools.jl file)
 # F..............................the RHS of the dynamical system
 # Fx.............................the Jacobian Matrix of the dynamical
 #                                system
@@ -78,16 +78,16 @@ function cont(initstepsize,maxstepsize,maxiter,steps,ord,F,Fx,X,v,dir)
             if ord==2
                 Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred));
             elseif ord==3
-                Fxx=nmder(Fx,Xpred,vpred,1);
+                Fxx=dirder(Fx,Xpred,Xpred,1);
                 Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2;
             elseif ord==4
-                Fxx=nmder(Fx,Xpred,vpred,1);
-                Fxxx=nmder(Fx,Xpred,vpred,2);
+                Fxx=dirder(Fx,Xpred,Xpred,1);
+                Fxxx=dirder(Fx,Xpred,Xpred,2);
                 Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2 - (mpinv(Fx(Xpred),F(Xpred))).^3 .* ((mpinv(Fx(Xpred),Fxx)).^2/2-mpinv(Fx(Xpred),Fxxx)/6);
             elseif ord==5
-                Fxx=nmder(Fx,Xpred,vpred,1);
-                Fxxx=nmder(Fx,Xpred,vpred,2);
-                Fxxxx=nmder(Fx,Xpred,vpred,3);
+                Fxx=dirder(Fx,Xpred,Xpred,1);
+                Fxxx=dirder(Fx,Xpred,Xpred,2);
+                Fxxxx=dirder(Fx,Xpred,Xpred,3);
                 Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2 - (mpinv(Fx(Xpred),F(Xpred))).^3 .* ((mpinv(Fx(Xpred),Fxx)).^2/2-mpinv(Fx(Xpred),Fxxx)/6) - (mpinv(Fx(Xpred),F(Xpred))).^4 .*(5*(mpinv(Fx(Xpred),Fxx)).^3/8 - mpinv(Fx(Xpred),Fxx) .* mpinv(Fx(Xpred),Fxxx)*5/12+mpinv(Fx(Xpred),Fxxxx)/24);
             end
             vpred=[Fx(Xpred);v']\[zeros(length(Fx(Xpred)[:,1]));1];
