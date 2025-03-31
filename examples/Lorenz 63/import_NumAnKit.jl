@@ -1,0 +1,1 @@
+include("C:\\Users\\aldoz\\OneDrive\\Desktop\\Julia_home\\NumAnKit\\env_start.jl")
