@@ -223,24 +223,24 @@ function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1,1])))
     possible_branchpoints=0;
     flag="none";
     if length(Branch[:,1])>4
-        old_eigval=eigs(Fx(Branch[:,1])[:,1:end-1],nev=1,which=:SM)[1][1];
-        old_eigval=sign(real(old_eigval));
+        old_eigval=eigs(Fx(Branch[:,1])[:,1:end-1],M,nev=1,which=:SM)[1][1];
+        sign_old_eigval=sign(real(old_eigval));
     else
-        old_eigval=eigen(Fx(Branch[:,1])[:,1:end-1]).values[argmin(abs.(eigen(Fx(Branch[:,1])[:,1:end-1]).values))];
-        old_eigval=sign(real(old_eigval));
+        old_eigval=eigen(Fx(Branch[:,1])[:,1:end-1],Matrix(M)).values[argmin(abs.(eigen(Fx(Branch[:,1])[:,1:end-1]).values))];
+        sign_old_eigval=sign(real(old_eigval));
     end
     for i=2:length(Branch[end,:])
         if length(Branch[:,1])>4
-            new_eigval=eigs(Fx(Branch[:,i])[:,1:end-1],nev=1,which=:SM)[1][1];
-            new_eigval=sign(real(new_eigval));
+            new_eigval=eigs(Fx(Branch[:,i])[:,1:end-1],M,nev=1,which=:SM)[1][1];
+            sign_new_eigval=sign(real(new_eigval));
         else
-            new_eigval=eigen(Fx(Branch[:,i])[:,1:end-1]).values[argmin(abs.(eigen(Fx(Branch[:,i])[:,1:end-1]).values))];
-            new_eigval=sign(real(new_eigval));
+            new_eigval=eigen(Fx(Branch[:,i])[:,1:end-1],Matrix(M)).values[argmin(abs.(eigen(Fx(Branch[:,i])[:,1:end-1]).values))];
+            sign_new_eigval=sign(real(new_eigval));
         end
-        if old_eigval*new_eigval==-1
+        if sign_old_eigval*sign_new_eigval==-1 && abs(imag(new_eigval))<1
             indexes_of_possible_branchpoints=[indexes_of_possible_branchpoints; i];
         end
-        old_eigval=new_eigval;
+        sign_old_eigval=sign_new_eigval;
     end
     if indexes_of_possible_branchpoints isa Vector
         indexes_of_possible_branchpoints=indexes_of_possible_branchpoints[2:end];
@@ -397,73 +397,36 @@ end
 # .BP.................................................................................................................................................................a named tuple containing:
 # .BP.BP...................................................................................................................a matrix whose columns are Branch points on the equilibrium manifold
 # .BP.tangents.......................................................................a matrix whose columns are the tangents to the equilibrium manifold in the direction of the current branch
-function analyse_branch(Branch,F,Fx;M=eye(size(Branch[1:end-1,1],1)),tol=1e-6,maxiter=Inf,k=2,hopf=true,fold=true,branchpoint=true)
+function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf,k=2,hopf=true,fold=true,branchpoint=true)
     if hopf==true
         task1=@spawn begin
             H=zeros(size(Branch,1),0);
             eigenvectors=zeros(size(Branch,1)-1,0)
-            detected_hopf=find_hopf(Branch,F,DF;M=M,tol=tol^0.5,maxiter=maxiter,k=k)
+            detected_hopf=find_hopf(Branch,DF;M=M,tol=tol,maxiter=maxiter,k=k)
             if detected_hopf.flag!="not converged"
-                n=size(detected_hopf.possible_hopf,2);
-                toremove=falses(n);
-                for i=1:n
-                    for j=(i+1):n
-                        if !toremove[i] && !toremove[j]
-                            distance=norm(detected_hopf.possible_hopf[:,i]-detected_hopf.possible_hopf[:,j])
-                            if distance<tol
-                                toremove[j]=true;
-                            end
+                approx_H=detected_hopf.approx_H;
+                for i=1:size(approx_H,2)
+                    reply=locate_hopf(approx_H[:,i],F,Fx,M=M,tol=tol,maxiter=maxiter)
+                    H=[H reply.X]
+                    eigenvectors=[eigenvectors reply.vector]
+                end
+                tokeep=trues(size(H,2))
+                for i=1:size(H,2)
+                    for j=i+1:size(H,2)
+                        if norm(H[:,i]-H[:,j])<tol
+                            tokeep[j]=false
                         end
                     end
                 end
-                detected_hopf=(flag=detected_hopf.flag, detected_hopf=detected_hopf.possible_hopf[:,.!toremove],mu=detected_hopf.mu);
-                for i=1:size(detected_hopf.detected_hopf,2)
-                    param_value=detected_hopf.detected_hopf[end,i];
-                    A,B=LinearizedJacobian(DF,detected_hopf.detected_hopf[:,i]);
-                    dummy2=mesp2(A,B;M=M,k=k,tol=tol);
-                    if dummy2.flag!="not converged"
-                        dummy=dummy2;
-                        param_value=param_value+dummy.lambda;
-                    else
-                        dummy=detected_hopf;
-                        param_value=detected_hopf.detected_hopf[end,i];
-                    end
-                    ftilde(x)=F([x;param_value]);
-                    Dftilde(x)=DF([x;param_value])[:,1:end-1];
-                    corrected_hopf=newton(detected_hopf.detected_hopf[1:end-1,i],ftilde,Dftilde,tol,maxiter);
-                    matrix=Dftilde(corrected_hopf.x);
-                    if size(matrix,1)>3
-                        eigenvectors=[eigenvectors eigs(Dftilde(corrected_hopf.x),sigma=dummy.mu,nev=1,which=:LM)[2]];
-                    else
-                        dummy3=eigen(matrix);
-                        index=argmin(abs.(real.(dummy3.values)));
-                        eigenvectors=[eigenvectors dummy3.vectors[:,index]];
-                    end
-                    H=[H [corrected_hopf.x;param_value]];
-                end
-                return (H=H,eigenvectors=eigenvectors)
-            else
-                return (H=NaN,eigenvectors=NaN)
+                H=H[:,tokeep]
+                eigenvectors=eigenvectors[:,tokeep]
             end
+            return (H=H,V=eigenvectors)
         end
     end
-    if fold==true
-        task2=@spawn begin
-            approxLP,flag=detect_fold(Branch);
-            LP=zeros(size(Branch,1),0);
-            if flag!="none"
-                for i=1:size(approxLP,2)
-                    dummy=locate_zero_eigenvalue(approxLP[:,i],F,Fx,M=M,tol=tol,maxiter=maxiter);
-                    if dummy.flag=="converged"
-                        LP=[LP dummy.X];
-                    end
-                end
-            end
-            return LP
-        end
-    end
+
     if branchpoint==true
-        task3=@spawn begin
+        task2=@spawn begin
             possibleBP,flag=detect_branchpoint(Branch,Fx,M=M);
             BP=zeros(size(Branch,1),0);
             tangents=BP;
@@ -492,24 +455,80 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch[1:end-1,1],1)),tol=1e-6,ma
                 end
                 return (BP=BP,tangents=tangents)
             else
-                return (BP=NaN,tangents=NaN)
+                return (BP=BP,tangents=tangents)
             end
         end
     end
+
+    if fold==true || branchpoint==true
+        task3=@spawn begin
+            approxLP,flag=detect_fold(Branch);
+            LP=zeros(size(Branch,1),0);
+            if flag!="none"
+                for i=1:size(approxLP,2)
+                    dummy=locate_zero_eigenvalue(approxLP[:,i],F,Fx,M=M,tol=tol,maxiter=maxiter);
+                    if dummy.flag!="not converged"
+                        LP=[LP dummy.X];
+                    end
+                end
+            end
+            return LP
+        end
+    end
+
     if hopf==true
         H=fetch(task1);
     else
         H=nothing
     end
-    if fold==true
-        LP=fetch(task2);
+    if fold==true || branchpoint==true
+        LP=fetch(task3);
     else
         LP=nothing
     end
     if branchpoint==true
-        BP=fetch(task3);
+        BP=fetch(task2);
     else
         BP=nothing
+    end
+
+    if branchpoint==true
+        pitchfork_indices=falses(size(LP,2))
+        for i=1:size(LP,2)
+            test=false
+            for j=1:size(BP.BP,2)
+                if norm(BP.BP[i]-LP[j])<=tol
+                    test=true
+                end
+            end
+            if test==false
+                pitchfork_indices[i]=true
+            end
+        end
+
+        indices=trues(size(BP.BP,2))
+        for i=1:size(BP.BP,2)
+            for j=1:size(LP,2)
+                if norm(BP.BP[i]-LP[j])<=tol
+                    indices[i]=false
+                end
+            end
+        end
+        branchpoints=BP.BP[:,indices]
+        tangents=BP.tangents[:,indices]
+        pitchforks=LP[:,pitchfork_indices]
+        branchpoints=[BP.BP pitchforks]
+        pitchfork_tangents=zeros(size(pitchforks))
+        for i=1:size(pitchforks,2)
+            if size(Branch,1)>3
+                pitchfork_tangents[:,i]=[eigs(Fx(pitchforks[:,i])[:,1:end-1],nev=1,which=:SM)[2];0]
+            else
+                dummy=eigen(Fx(pitchforks[:,i])[:,1:end-1]);
+                pitchfork_tangents[:,i]=[dummy.vectors[:,argmin(abs.(dummy.values))];0]
+            end
+        end
+        tangents=[BP.tangents pitchfork_tangents]
+        BP=(BP=branchpoints,tangents=tangents)
     end
     return (H=H,LP=LP,BP=BP)
 end
