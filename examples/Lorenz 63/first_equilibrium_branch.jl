@@ -10,7 +10,7 @@ initial_stepsize=0.1;
 maximum_stepsize=2;
 maximum_number_of_newton_iterations=9; # maximum number of newton iterations before the stepsize is halved
 steps=52; # number of points we want to compute on the bifurcation diagram
-order_of_newton_method=4; # order of the moore-penrose corrections (takes values from 2 to 5)
+order_of_newton_method=5; # order of the moore-penrose corrections (takes values from 2 to 5)
 direction=1; # direction to perform the continuation in (leftwards in this case)
 # we should also define F(x) and DF(x), however we already did this in the file "my_system"
 
