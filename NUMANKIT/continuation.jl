@@ -70,8 +70,8 @@ function cont(initstepsize,maxstepsize,maxiter,steps,ord,F,Fx,X,v,dir)
     n=maxiter;
     for j=1:steps
         Xpred=X+s*dir*v;
-        if n<maxiter/2 && s<=maxstepsize/2
-            s=s*2;
+        if n<maxiter/2 && s<maxstepsize
+            s=min(s*2,maxstepsize);
         end
         n=0;
         while norm(F(Xpred))>10^(-12) || norm(Xpred-X)>maxstepsize || vpred'*v<0
