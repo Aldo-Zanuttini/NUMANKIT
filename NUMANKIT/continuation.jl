@@ -78,17 +78,20 @@ function cont(initstepsize,maxstepsize,maxiter,steps,ord,F,Fx,X,v,dir)
             if ord==2
                 Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred));
             elseif ord==3
-                Fxx=dirder(Fx,Xpred,Xpred,1)*Xpred;
-                Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2;
+                h1=-Fx(Xpred)\F(Xpred);
+                h2=h1+0.5*Fx(Xpred)\(dirder(Fx,Xpred,h1,1)*h1);
+                Xpred=Xpred +h2;
             elseif ord==4
-                Fxx=dirder(Fx,Xpred,Xpred,1)*Xpred;
-                Fxxx=dirder(Fx,Xpred,Xpred,2)*Xpred;
-                Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2 - (mpinv(Fx(Xpred),F(Xpred))).^3 .* ((mpinv(Fx(Xpred),Fxx)).^2/2-mpinv(Fx(Xpred),Fxxx)/6);
+                h1=-Fx(Xpred)\F(Xpred);
+                h2=h1+0.5*Fx(Xpred)\(dirder(Fx,Xpred,h1,1)*h1);
+                h3=h2+(1/6)*Fx(Xpred)\(dirder(Fx,Xpred,h1,2)*h1);
+                Xpred=Xpred +h3;
             elseif ord==5
-                Fxx=dirder(Fx,Xpred,Xpred,1)*Xpred;
-                Fxxx=dirder(Fx,Xpred,Xpred,2)*Xpred;
-                Fxxxx=dirder(Fx,Xpred,Xpred,3)*Xpred;
-                Xpred=Xpred - mpinv(Fx(Xpred),F(Xpred)) - (mpinv(Fx(Xpred),F(Xpred))).^2 .* (mpinv(Fx(Xpred),Fxx))/2 - (mpinv(Fx(Xpred),F(Xpred))).^3 .* ((mpinv(Fx(Xpred),Fxx)).^2/2-mpinv(Fx(Xpred),Fxxx)/6) - (mpinv(Fx(Xpred),F(Xpred))).^4 .*(5*(mpinv(Fx(Xpred),Fxx)).^3/8 - mpinv(Fx(Xpred),Fxx) .* mpinv(Fx(Xpred),Fxxx)*5/12+mpinv(Fx(Xpred),Fxxxx)/24);
+                h1=-Fx(Xpred)\F(Xpred);
+                h2=h1+0.5*Fx(Xpred)\(dirder(Fx,Xpred,h1,1)*h1);
+                h3=h2+(1/6)*Fx(Xpred)\(dirder(Fx,Xpred,h1,2)*h1);
+                h4=h3+(1/24)*Fx(Xpred)\(dirder(Fx,Xpred,h1,3)*h1);
+                Xpred=Xpred +h4;
             end
             vpred=[Fx(Xpred);v']\[zeros(length(Fx(Xpred)[:,1]));1];
             n=n+1;
