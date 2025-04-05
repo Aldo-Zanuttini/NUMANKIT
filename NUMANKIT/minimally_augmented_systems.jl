@@ -112,8 +112,7 @@ function min_aug_system_hopf(x,F,Fx;M=eye(length(x)-2))
         p=eigen(Df',Matrix(M'));
         p=p.vectors[:,argmin(abs.(p.values))];
     end
-    p=real(p);
-    q=real(q);
+    q=q/norm(q);
     p=p/(p'*q);
     g=[Df p;q' 0]\[zeros(n);1];
     g=g[end];
@@ -156,9 +155,8 @@ function min_aug_jacobian_hopf(x,F,Fx;M=eye(length(x)-2))
         p=eigen(Df',Matrix(M'));
         p=p.vectors[:,argmin(abs.(p.values))];
     end
-    p=real(p);
-    q=real(q);
-    q=q/(p'*q);
+    q=q/norm(q);
+    p=p/(p'*q);
     wg=[Df p;q' 0]\[zeros(n);1];
     w=wg[1:end-1];
     vh=[Df' q;p' 0]\[zeros(n);1];
