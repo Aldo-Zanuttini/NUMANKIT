@@ -4,8 +4,7 @@ critical_eigenvector1=bifurcation_points.H.V[:,1];
 v=real(critical_eigenvector1);
 w=imag(critical_eigenvector1);
 theta=0;
-epsilon=(tolerance/(length(X0)-1))^0.5; # recall that we defined a tolerance and an X0 in the "first_equilibrium_branch.jl" file 
-perturbation=epsilon+0.3;
+perturbation=0.27;
 x0_time=perturbation*(v*cos(theta)+w*sin(theta))+bifurcation_points.H.H[1:3,1]
 # next we extract the parameter value at which hopf happens:
 rho=bifurcation_points.H.H[end,1];
