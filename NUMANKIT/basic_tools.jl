@@ -26,18 +26,22 @@ end
 # v
 function dirder(f,x,v,ord)
     h=10^(-16);
+    nrmx=norm(x);
+    if nrmx==0
+        nrmx=1;
+    end
     if ord==1
-        h=h^(1/2)*norm(x);
+        h=h^(1/2)*nrmx;
         df= (-f(x+3*h*v)+9*f(x+2*h*v)-45*f(x+h*v)+45*f(x-h*v)-9*f(x-2*h*v)+f(x-3*h*v))/(60*h);
     elseif ord==2
-        h=h^(1/3)*norm(x);
+        h=h^(1/3)*nrmx;
         df= (2*f(x+3*h*v)-27*f(x+2*h*v)+270*f(x+h*v)-490*f(x)+270*f(x-h*v)-27*f(x-2*h*v)+2*f(x-3*h*v))/(180*h^2);
     elseif ord==3
-        h=h^(1/4)*norm(x);
+        h=h^(1/4)*nrmx;
         df= (-f(x+3*h*v)+8*f(x+2*h*v)-13*f(x+h*v)+13*f(x-h*v)-8*f(x-2*h*v)+f(x-3*h*v))/(8*h^3);
     elseif ord==4
-        h=h^(1/5)*norm(x);
-        df= (-f(x+3*h*v)+12*f(x+2*h*v)-39*f(x+h*v)+56*f(x)-39*f(x-h*v)+12*f(x-2*h*v)-f(x-3*h*v));
+        h=h^(1/5)*nrmx;
+        df= (9*f(x+4*h*v)-128*f(x+3*h*v)+1008*f(x+2*h*v)-8064*f(x+h*v)+14350*f(x)-8064*f(x-h*v)+1008*f(x-2*h*v)-128*f(x-3*h*v)+9*f(x-4*h*v))/(5040*h^4);
     end
     return df
 end
