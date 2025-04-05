@@ -5,16 +5,16 @@ v=real(critical_eigenvector1);
 w=imag(critical_eigenvector1);
 theta=0;
 epsilon=(tolerance/(length(X0)-1))^0.5; # recall that we defined a tolerance and an X0 in the "first_equilibrium_branch.jl" file 
-perturbation=epsilon+1e-12;
-x0_time=perturbation*(v*cos(theta)+w*sin(theta))
+perturbation=epsilon+0.3;
+x0_time=perturbation*(v*cos(theta)+w*sin(theta))+bifurcation_points.H.H[1:3,1]
 # next we extract the parameter value at which hopf happens:
 rho=bifurcation_points.H.H[end,1];
 # we then define the system for time integration
 f_time(x)=f(x,rho,sigma,beta) # (recall that we defined f and Df in the "my_system.jl" file...)
 Df_time(x)=Df(x,rho,sigma,beta)
 # finally we define the parameters for the time integration
-steps=10^4;
-stepsize=0.01;
+steps=10^5;
+stepsize=0.1;
 theta=0.5; # see https://en.wikipedia.org/wiki/Newmark-beta_method
 time_evolution=timeseries(x0_time,steps,stepsize,theta,f_time,Df_time);
 
