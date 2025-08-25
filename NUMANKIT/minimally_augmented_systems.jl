@@ -51,8 +51,8 @@ end
 function min_aug_jacobian_zero_eigval(x,F,Fx;M=eye(length(x)-1))
     Df=Fx(x)[:,1:end-1];
     n=size(Df,1);
-    q=eigz(Df,0;M=M);
-    p=eigz(Df',0;M=M');
+    q=eigz(Df,0;M=M)[2];
+    p=eigz(Df',0;M=M')[2];
     q=q/(p'*q);
     wg=[Df p;q' 0]\[zeros(n);1];
     w=wg[1:end-1];
@@ -89,8 +89,8 @@ function min_aug_system_hopf(x,F,Fx;M=eye(length(x)-2))
     x=x[1:end-1];
     Df=Fx(x)[:,1:end-1]
     n=size(Df,1);
-    q=eigz(Df,1.0im*omega;M=M);
-    p=eigz(Df',-1.0im*omega;M=M')
+    q=eigz(Df,1.0im*omega;M=M)[2];
+    p=eigz(Df',-1.0im*omega;M=M')[2];
     q=q/norm(q);
     p=p/(p'*q);
     g=[Df p;q' 0]\[zeros(n);1];
@@ -125,8 +125,8 @@ function min_aug_jacobian_hopf(x,F,Fx;M=eye(length(x)-2))
     x=x[1:end-1];
     Df=Fx(x)[:,1:end-1];
     n=size(Df,1);
-    q=eigz(Df,1.0im*omega;M=M);
-    p=eigz(Df',-1.0im*omega,M=M')
+    q=eigz(Df,1.0im*omega;M=M)[2];
+    p=eigz(Df',-1.0im*omega,M=M')[2];
     q=q/norm(q);
     p=p/(p'*q);
     wg=[Df p;q' 0]\[zeros(n);1];
@@ -139,4 +139,5 @@ function min_aug_jacobian_hopf(x,F,Fx;M=eye(length(x)-2))
     gprime2=imag(gprime);
     DG=[Fx(x) zeros(n);gprime1;gprime2]
     return DG
+
 end
