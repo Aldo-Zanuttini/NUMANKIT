@@ -48,8 +48,3 @@ display(plot!(legend=true))
 
 
 # Okay: we have a branchpoint. Let's compute the other branch too! (see "second_equilibrium_branch.jl" file)
-
-
-hps=bifurcation_points.H.H[:,1];
-vals=eigen(DF(hps)[:,1:3]).values;
-hps=[hps;imag(vals[3])];
