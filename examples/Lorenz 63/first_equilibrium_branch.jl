@@ -1,7 +1,7 @@
 # begin a continuation problem: get a starting point on an equilibrium
 # manifold and the associated tangent vector
-initial_parameter_value=26; # specify an initial parameter to start the continuation from
-initial_equilibrium_guess=rand(3)*100; # guess a random equilibrium
+initial_parameter_value=30; # specify an initial parameter to start the continuation from
+initial_equilibrium_guess=[sqrt(beta*(initial_parameter_value-1));sqrt(beta*(initial_parameter_value-1));initial_parameter_value-1] # here you can also guess a random equilibrium, but to ensure the flow of this example is "as expected" we input an exact equilibrium
 X0,v0=init_cont(initial_parameter_value,F,DF,initial_equilibrium_guess); # get the first point on the bifurcation diagram and its associated tangent vector
 v0=sign(v0[end])*v0/norm(v0); # normalize and ensure that the vector points rightwards in the continuation parameter direction
 
@@ -9,7 +9,7 @@ v0=sign(v0[end])*v0/norm(v0); # normalize and ensure that the vector points righ
 initial_stepsize=0.1;
 maximum_stepsize=2;
 maximum_number_of_newton_iterations=9; # maximum number of newton iterations before the stepsize is halved
-steps=52; # number of points we want to compute on the bifurcation diagram
+steps=49; # number of points we want to compute on the bifurcation diagram
 order_of_newton_method=5; # order of the moore-penrose corrections (takes values from 2 to 5)
 direction=1; # direction to perform the continuation in (leftwards in this case)
 # we should also define F(x) and DF(x), however we already did this in the file "my_system"
@@ -23,6 +23,7 @@ variable_of_interest=Branch[1,:]; # for this particular system the second variab
 plot(continuation_parameter_values,variable_of_interest,label="")
 xlabel!("α")
 ylabel!("x")
+
 
 # analyse the branch:
 # define the parameters for the analyse_branch function
@@ -47,3 +48,8 @@ display(plot!(legend=true))
 
 
 # Okay: we have a branchpoint. Let's compute the other branch too! (see "second_equilibrium_branch.jl" file)
+
+
+hps=bifurcation_points.H.H[:,1];
+vals=eigen(DF(hps)[:,1:3]).values;
+hps=[hps;imag(vals[3])];

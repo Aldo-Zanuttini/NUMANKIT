@@ -1,1 +1,1 @@
-include("C:  [absolute_path_to]   \\NumAnKit\\env_start.jl")
+include("C:\\Users\\aldoz\\OneDrive\\Desktop\\Julia_home\\NUMANKIT\\env_start.jl")
