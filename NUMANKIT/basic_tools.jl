@@ -74,25 +74,52 @@ function newton(x,f,df,tol,maxit)
     end
 end
 
-########## FUNCTION: sparsematdiv ##########
+########## FUNCTION: matdiv ##########
 # Computes the product
-#              C=A^(-1)*B
+#              c=A^(-1)*b
 # where A (and B) are sparse matrices
 # INPUTS
 # A...................sparse matrix whose
 #                     inverse is to be
 #                     applied
-# B...................(sparse) matrix to
-#                     be left-multiplied
-#                     with a
+# b...................vector to be left
+#                     multiplied
+#                     with A inverse
+# tolerance...........the accuracy of
+#                     the product (optional)
 # OUTPUTS
-# result..............the product A^(-1)*B
-function sparsematdiv(A,B)
-    result=A\Vector(B[:,1])
-    for i=2:size(B)[2]
-        result=[result A\Vector(B[:,i])]
+# result..............the product A^(-1)*b
+function matdiv(A,b;tolerance=1e-16)
+A=sparse(A)
+answer=nothing
+    if length(b)<10^3 || tolerance==0
+        try
+            answer=A\b
+        catch e
+            if isa(e,SingularException)
+                epsilon=1e-6*max(length(b),opnorm(A,Inf))
+                P=ilu(A+eye(size(A,1))*epsilon,τ=0)
+                answer=P\b
+            else
+                try
+                    P=ilu(A,τ=0)
+                    answer=P\b
+                catch e
+                 throw(e)
+                end
+            end
+        end
+    elseif length(b)>=10^3
+        try
+            answer=gmres(A,b,abstol=tolerance,reltol=tolerance)
+        catch e
+            if isa(e,LinearAlgebra.LAPACKException)
+                P=ilu(A)
+                answer=gmres(A,b,Pl=P,abstol=tolerance,reltol=tolerance)
+            end
+        end
     end
-    return dropzeros(sparse(result))
+    return answer
 end
 
 ##### FUNCTION: truncated_eigendecomp  #####
@@ -113,20 +140,12 @@ function truncated_eigendecomp(M,rank)
     if size(M,1)==1
         V=M;
         D=1;
-    elseif size(M[1,:])[1]>3
-        D,V=eigs(A,nev=rank,which=:LM);
-        D=spdiagm(D);
-        V=dropzeros(sparse(V));
     else
-        D,V=eigen(Matrix(M));
-        D=spdiagm(D[end-rank+1:end]);
-        V=V[:,end-rank+1:end];
+        D,V,_=eigz(M,Inf,howmany=rank,tol=1e-15);
+        D=spdiagm(D);
     end
     return (V=V,D=D)
 end
-
-
-
 
 ############ FUNCTION: savedata ############
 # INPUTS

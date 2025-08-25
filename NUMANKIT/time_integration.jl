@@ -1,31 +1,26 @@
-######################################## FUNCTION: timeseries ########################################
-#                 creates a time-series for some (non) autonomous dynamical system
-#                                             Mx'=f(t,x)
-#      also accepts autonomous systems and non-DAE systems (note that if M is singular one must
-#         choose an implicit method (theta below can be chosen to be very small... note also
-#          if M is not the identity matrix, i.e. the timescales are meaningfully different 
-#                              one must choose a suitably small timestep)
+################################################################################## FUNCTION: timeseries ##################################################################################
+#                                                           creates a time-series for some (non) autonomous dynamical system
+#                                                                                        Mx'=f(t,x)
+#                                             also accepts autonomous systems and non-DAE systems (note that if M is singular one must
+#                                                choose an implicit method (theta below can be chosen to be very small... note also
+#                                                  if M is not the identity matrix, i.e. the timescales are meaningfully different 
+#                                                                        one must choose a suitably small timestep)
 # INPUTS (compulsory)
-# x0.........................................initial condition for the problem
-# steps......................................number of steps to make
-# stepsize...................................the value of direction
-# theta......................................the parameter deciding what method to use: for theta=0
-#                                            returns backward Euler, for theta=1 returns forward Euler
-#                                            and for theta=0.5 returns Crank-Nicolson.
-# f..........................................the RHS function of Mx'=f(t,x)
-# M..........................................the mass matrix of Mx'=f(t,x)
-# df.........................................the Jacobian matrix of f
+# x0.....................................................................................................................................................initial condition for the problem
+# steps............................................................................................................................................................number of steps to make
+# stepsize..........................................................................................................................................................the value of direction
+# theta..........................the parameter deciding what method to use: for theta=0 returns backward Euler, for theta=1 returns forward Euler and for theta=0.5 returns Crank-Nicolson
+# f.........................................................................................................................................................the RHS function of Mx'=f(t,x)
+# M..........................................................................................................................................................the mass matrix of Mx'=f(t,x)
+# df..............................................................................................................................................................the Jacobian matrix of f
 # INPUTS (optional)
-# t0.........................................initial time, necessary if system is non-autonomous
-# newton_tol.................................tolerance of newton's method
-# newton_maxit...............................maximum number of newton iterations
-# M..........................................the mass matrix M in Mx'=f(t,x)
+# t0...................................................................................................................................initial time, necessary if system is non-autonomous
+# newton_tol..................................................................................................................................................tolerance of newton's method
+# newton_maxit.........................................................................................................................................maximum number of newton iterations
+# M........................................................................................................................................................the mass matrix M in Mx'=f(t,x)
 # OUTPUTS a named tuple with names
-# .series....................................a matrix whose column space are points in the time series
-#                                            (and whose rows are values of the variables in the 
-#                                            dynamical system)
-# .time......................................a vector containing the subset of the time-set covered by
-#                                            integration
+# .series...................................................a matrix whose column space are points in the time series (and whose rows are values of the variables in the dynamical system)
+# .time..............................................................................................................a vector containing the subset of the time-set covered by integration
 function timeseries(x0,t0,steps,stepsize,theta,f,df;newton_tol=10^(-3)*stepsize,newton_maxiter=10^3,M=1.0)
     if methods(f)[1].nargs==2
         x, T=timeseries(x0,steps,stepsize,theta,f,df,newton_tol,newton_maxiter)

@@ -1,16 +1,16 @@
-################################################################################ FUNCTION: LinearizedJacobian  ################################################################################
+############################################################################## FUNCTION: LinearizedJacobian ##############################################################################
 #                                                                          Linearizes the jacobian of a given system,
 #                                                                               Df(u,a)=Df(u,a_0)+a*Df'(u,a_0)
 #                                     where a is a continuation parameter. Used as support for the mesp algorithms for the detection of Hopf bifurcations.
 # INPUTS
-# Fx..................................................................................................................................................function handle to the augmented jacobian
-# x_i....................................................................................................ith point on bifurcation diagram (vector containing the continuation parameter, i=1,2)
+# Fx.............................................................................................................................................function handle to the augmented jacobian
+# x_i...............................................................................................ith point on bifurcation diagram (vector containing the continuation parameter, i=1,2)
 # OUTPUTS
-# A.............................................................................................................................the matrix A=Df(u,a_0) (where Df is the non-augmented jacobian)
-# B............................................................................................................................the matrix B=Df'(u,a_0) (where Df is the non-augmented jacobian)
+# A........................................................................................................................the matrix A=Df(u,a_0) (where Df is the non-augmented jacobian)
+# B.......................................................................................................................the matrix B=Df'(u,a_0) (where Df is the non-augmented jacobian)
 function LinearizedJacobian(Fx,x)
     A=Fx(x);
-    dudlambda=gmres(A[:,1:end-1],A[:,end]);
+    dudlambda=matdiv(A[:,1:end-1],A[:,end]);
     dudlambda=[dudlambda;0];
     h1=10^(-8)*norm(x);
     h2=10^(-8)*abs(x[end]);
@@ -20,7 +20,7 @@ function LinearizedJacobian(Fx,x)
     return (A=A[:,1:end-1],B=B[:,1:end-1])
 end
 
-####################################################################################### FUNCTION: mesp1 #######################################################################################
+#################################################################################### FUNCTION:  mesp1 ####################################################################################
 #                                                                         Locates the nearest Hopf bifurcation of
 #                                                                                       M*u_t=f(u,lambda)
 #                                                                        by looking at the parametrized eigenproblem
@@ -31,15 +31,15 @@ end
 # INPUTS
 # A.....................................................................................................................................value of the Jacobian around the point of linearisation
 # B....................................................................................value of the derivative of the Jacobian wrt the continuation parameter around the point of linearisation
-# M.......................................................................................................................mass matrix of the problem (optional: if not given it is assumed M=I)
+# M..................................................................................................................mass matrix of the problem (optional: if not given it is assumed M=I)
 # tol...............................................................................................................tolerance for solving (1), optional: if not given it is assumed tol=10^(-6)
-# maxdist..............maximum distance (from the point around which the Jacobian was linearized) of the Hopf bifurcation to be located (optional: if not given it is assumed that maxdist=Inf)
-# maxiter................................................................................................................maximum number of iterations (defaults to Inf, must be greater than 5)
+# maxdist.........maximum distance (from the point around which the Jacobian was linearized) of the Hopf bifurcation to be located (optional: if not given it is assumed that maxdist=Inf)
+# maxiter...........................................................................................................maximum number of iterations (defaults to Inf, must be greater than 5)
 # OUTPUTS
-# lambda..........................................................................................................................value of the continuation parameter at which (1) is satisfied
-# Z.......................................................................................................................................................value of Z for which (1) is satisfied
-# mu...........................................................................................................................eigenvalue of Df(u,lambda) corresponding to the Hopf bifurcation
-# y.................................................................................................................................projected eigenvector corresponding to the Hopf bifurcation
+# lambda.....................................................................................................................value of the continuation parameter at which (1) is satisfied
+# Z..................................................................................................................................................value of Z for which (1) is satisfied
+# mu......................................................................................................................eigenvalue of Df(u,lambda) corresponding to the Hopf bifurcation
+# y............................................................................................................................projected eigenvector corresponding to the Hopf bifurcation
 function mesp1(A,B;M=eye(size(A,1)),tol=1e-6,maxdist=Inf,maxiter=Inf)
     n=size(A,1);
     V=randn(n,1);
@@ -76,9 +76,8 @@ function mesp1(A,B;M=eye(size(A,1)),tol=1e-6,maxdist=Inf,maxiter=Inf)
             mu=1;
             y=1;
         else
-            dummy=eigen(Matrix(V'*(A+lambda*B)*V),Matrix(V'*M*V));
-            mu=dummy.values[1];
-            y=dummy.vectors[:,1];
+            mu,y,_=eigz(V'*(A+lambda*B)*V, Inf, M=V'*M*V);
+            mu=mu[1];
         end
         if j>maxiter || (j>5 && abs(lambda)>maxdist)
             break
@@ -92,7 +91,7 @@ function mesp1(A,B;M=eye(size(A,1)),tol=1e-6,maxdist=Inf,maxiter=Inf)
     return (lambda=lambda, Z=Z, mu=mu, y=y, flag=flag)
 end
 
-####################################################################################### FUNCTION: mesp2 #######################################################################################
+#################################################################################### FUNCTION:  mesp2 ####################################################################################
 #                                                                         Locates the nearest Hopf bifurcation of
 #                                                                                       M*u_t=f(u,lambda)
 #                                                                        by looking at the parametrized eigenproblem
@@ -101,18 +100,18 @@ end
 #                                            and performing inverse iteration (the Meerbergen-Spence algorithm) on the projected matrix eigenproblem
 #                                                                          M*Z*A'+A*Z*M'+lambda*(M*Z*B'+B*Z*M')    (1).
 # INPUTS
-# A.....................................................................................................................................value of the Jacobian around the point of linearisation
-# B....................................................................................value of the derivative of the Jacobian wrt the continuation parameter around the point of linearisation
-# M.......................................................................................................................mass matrix of the problem (optional: if not given it is assumed M=I)
-# k...............................................................................................................................................................size of the projected problem
-# tol...............................................................................................................tolerance for solving (1), optional: if not given it is assumed tol=10^(-6)
-# maxdist..............maximum distance (from the point around which the Jacobian was linearized) of the Hopf bifurcation to be located (optional: if not given it is assumed that maxdist=Inf)
-# maxiter................................................................................................................maximum number of iterations (defaults to Inf, must be greater than 5)
+# A................................................................................................................................value of the Jacobian around the point of linearisation
+# B...............................................................................value of the derivative of the Jacobian wrt the continuation parameter around the point of linearisation
+# M..................................................................................................................mass matrix of the problem (optional: if not given it is assumed M=I)
+# k..........................................................................................................................................................size of the projected problem
+# tol..........................................................................................................tolerance for solving (1), optional: if not given it is assumed tol=10^(-6)
+# maxdist.........maximum distance (from the point around which the Jacobian was linearized) of the Hopf bifurcation to be located (optional: if not given it is assumed that maxdist=Inf)
+# maxiter...........................................................................................................maximum number of iterations (defaults to Inf, must be greater than 5)
 # OUTPUTS
-# lambda..........................................................................................................................value of the continuation parameter at which (1) is satisfied
-# Z.......................................................................................................................................................value of Z for which (1) is satisfied
-# mu...........................................................................................................................eigenvalue of Df(u,lambda) corresponding to the Hopf bifurcation
-# y.................................................................................................................................projected eigenvector corresponding to the Hopf bifurcation
+# lambda.....................................................................................................................value of the continuation parameter at which (1) is satisfied
+# Z..................................................................................................................................................value of Z for which (1) is satisfied
+# mu......................................................................................................................eigenvalue of Df(u,lambda) corresponding to the Hopf bifurcation
+# y............................................................................................................................projected eigenvector corresponding to the Hopf bifurcation
 function mesp2(A,B;M=eye(size(A,1)),k=2,tol=1e-6,maxdist=Inf,maxiter=Inf)
     V=rand(size(A,2));
     V=V/norm(V);
@@ -130,9 +129,8 @@ function mesp2(A,B;M=eye(size(A,1)),k=2,tol=1e-6,maxdist=Inf,maxiter=Inf)
         lambda,Ztilde,_=mesp1(Atilde,Btilde,M=Mtilde,tol=tol,maxdist=maxdist,maxiter=maxiter);
         Z=V*Ztilde*V';
         if j>1
-            dummy=eigen(Matrix(V'*(A+lambda*B)*V),Matrix(V'*M*V));
-            mu=dummy.values[1];
-            y=dummy.vectors[:,1];
+            mu,y,_=eigz(V'*(A+lambda*B)*V, Inf, M=V'*M*V);
+            mu=mu[1];
             residual_norm=norm((A+lambda*B)*V*y-mu*M*V*y);
         end
         F=-(B*Z*M'+M*Z*B');
@@ -152,45 +150,41 @@ function mesp2(A,B;M=eye(size(A,1)),k=2,tol=1e-6,maxdist=Inf,maxiter=Inf)
     return (lambda=lambda,Z=Z,mu=mu,y=y,flag=flag)
 end
 
-############################################################################## FUNCTION:  locate_zero_eigenvalue ##############################################################################
+############################################################################ FUNCTION: locate_zero_eigenvalue ############################################################################
 #                                                                     Locates the nearest Fold bifurcation/Branchpoint of
 #                                                                                   M*u_t=f(u,lambda)    (1)
 #                                                   by applying newton to a minimally augmented system (see min_aug_system_zero_eigval(...))
 # INPUTS
-# x0.......................a starting point on an equilibrium manifold near a point where the non-augmented jacobian is singular (if chosen too far the minimally augmented system is singular)
-# F.....................................................................................................................the augmented version of the RHS of (1): F(X)=f(u,lambda), X=[u;lambda]
-# Fx............................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
-# M...........................................................................................................................................................the mass matrix of the system (1)
-# tol.................................................................................................................tolerance of the method, optional: if not given it is assumed tol=10^(-6)
-# maxiter...............................................................................................................................maximum number of iterations, optional: defaults to 100
+# x0..................a starting point on an equilibrium manifold near a point where the non-augmented jacobian is singular (if chosen too far the minimally augmented system is singular)
+# F................................................................................................................the augmented version of the RHS of (1): F(X)=f(u,lambda), X=[u;lambda]
+# Fx.......................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M......................................................................................................................................................the mass matrix of the system (1)
+# tol............................................................................................................tolerance of the method, optional: if not given it is assumed tol=10^(-6)
+# maxiter..........................................................................................................................maximum number of iterations, optional: defaults to 100
 # OUTPUTS
-# X....................................................fold point on the bifurcation diagram X=[x*;lambda*] where x* is an equilibrium of (1) and lambda is the value at which the fold happens
-# mu..........................................................................................................................the eigenvalue of smallest magnitude of system (1) at the point X
-# flag........................................................................................................a string telling you if the method has converged and if so in how many iterations
+# X...............................................fold point on the bifurcation diagram X=[x*;lambda*] where x* is an equilibrium of (1) and lambda is the value at which the fold happens
+# mu.....................................................................................................................the eigenvalue of smallest magnitude of system (1) at the point X
+# flag...................................................................................................a string telling you if the method has converged and if so in how many iterations
 function locate_zero_eigenvalue(x0,F,Fx;M=eye(length(x0)-1),tol=1e-6,maxiter=100)
     Ftilde(x)=min_aug_system_zero_eigval(x,F,Fx;M=M);
     Fxtilde(x)=min_aug_jacobian_zero_eigval(x,F,Fx;M=M);
-    if abs(eigs(Fxtilde(x0),nev=1,which=:SM)[1][1])<1e-16 || any(isnan.(Fxtilde(x0)))
+    if abs(eigz(Fxtilde(x0),0)[1][1])<1e-16 || any(isnan.(Fxtilde(x0)))
         return (X=NaN*ones(length(x0)), mu=NaN, flag= "not converged")
     end
     X=newton(x0,Ftilde,Fxtilde,tol,maxiter);
     flag=X.flag;
     X=X.x;
-    if size(Fx(X),1)<5
-        accu=minimum(abs.(eigen(Fx(X)[:,1:end-1]).values));
-    else
-        accu=eigs(Fx(X)[:,1:end-1],nev=1,which=:SM)[1];
-    end
+    accu=eigz(Fx(X)[:,1:end-1],0,M=M);
     return (X=X, mu=accu, flag=flag)
 end
 
-#################################################################################### FUNCTION: detect_fold ####################################################################################
+################################################################################# FUNCTION:  detect_fold #################################################################################
 #                                                                        Detects foldpoints in an equilibrium manifold
 # INPUTS
-# Branch.......................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
+# Branch..................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
 # OUTPUTS
-# .approximate_foldpoints..........................................................................................A matrix whose columns are approximate foldpoints of an equilibrium manifold
-# .flag.............................................................................................A string telling the user if the method found any approximate foldpoints and if so how many
+# .approximate_foldpoints.....................................................................................A matrix whose columns are approximate foldpoints of an equilibrium manifold
+# .flag........................................................................................A string telling the user if the method found any approximate foldpoints and if so how many
 function detect_fold(Branch)
     dlambda=Branch[end,2:end]-Branch[end,1:end-1];
     indexes_of_folds_detected=0;
@@ -209,34 +203,24 @@ function detect_fold(Branch)
     return (approximate_foldpoints=approximate_foldpoints,flag=flag)
 end
 
-################################################################################ FUNCTION:  detect_branchpoint ################################################################################
+############################################################################## FUNCTION: detect_branchpoint ##############################################################################
 #                                                   Detects possible branchpoints in an equilibrium manifold (these could also be fold points)
 # INPUTS
-# Branch.......................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
-# Fx.........................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
-# M..........................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
+# Branch..................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
+# Fx....................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
+# M.....................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
 # OUTPUTS
-# .possible_branchpoints.......................................................-........................A matrix whose columns are approximate possible branchpoints of an equilibrium manifold
-# .flag..............................................................................................A string telling the user if the method found any possible branchpoints and if so how many
+# .possible_branchpoints..................................................-........................A matrix whose columns are approximate possible branchpoints of an equilibrium manifold
+# .flag.........................................................................................A string telling the user if the method found any possible branchpoints and if so how many
 function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1,1])))
     indexes_of_possible_branchpoints=0;
     possible_branchpoints=0;
     flag="none";
-    if length(Branch[:,1])>4
-        old_eigval=eigs(Fx(Branch[:,1])[:,1:end-1],M,nev=1,which=:SM)[1][1];
-        sign_old_eigval=sign(real(old_eigval));
-    else
-        old_eigval=eigen(Fx(Branch[:,1])[:,1:end-1],Matrix(M)).values[argmin(abs.(eigen(Fx(Branch[:,1])[:,1:end-1]).values))];
-        sign_old_eigval=sign(real(old_eigval));
-    end
+    old_eigval=eigz(Fx(Branch[:,1])[:,1:end-1],0,M=M)[1][1];
+    sign_old_eigval=sign(real(old_eigval));
     for i=2:length(Branch[end,:])
-        if length(Branch[:,1])>4
-            new_eigval=eigs(Fx(Branch[:,i])[:,1:end-1],M,nev=1,which=:SM)[1][1];
-            sign_new_eigval=sign(real(new_eigval));
-        else
-            new_eigval=eigen(Fx(Branch[:,i])[:,1:end-1],Matrix(M)).values[argmin(abs.(eigen(Fx(Branch[:,i])[:,1:end-1]).values))];
-            sign_new_eigval=sign(real(new_eigval));
-        end
+        new_eigval=eigz(Fx(Branch[:,i])[:,1:end-1],0,M=M)[1][1];
+        sign_new_eigval=sign(real(new_eigval));
         if sign_old_eigval*sign_new_eigval==-1 && abs(imag(new_eigval))<1
             indexes_of_possible_branchpoints=[indexes_of_possible_branchpoints; i];
         end
@@ -250,22 +234,22 @@ function detect_branchpoint(Branch,Fx;M=eye(length(Branch[1:end-1,1])))
     return (possible_branchpoints=possible_branchpoints,flag=flag)
 end
 
-#################################################################################### FUNCTION: locate_hopf ####################################################################################
+################################################################################# FUNCTION:  locate_hopf #################################################################################
 #                                                                           Locates the nearest Hopf bifurcation
 #                                                                                   M*u_t=f(u,lambda)    (1)
 #                                                   by applying newton to a minimally augmented system (see min_aug_system_hopf(...))
 # INPUTS
-# x0.....................................................................................................................a starting point on an equilibrium manifold near a presumed hopf point
-# F.....................................................................................................................the augmented version of the RHS of (1): F(X)=f(u,lambda), X=[u;lambda]
-# Fx............................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
-# M...........................................................................................................................................................the mass matrix of the system (1)
-# tol.................................................................................................................tolerance of the method, optional: if not given it is assumed tol=10^(-6)
-# maxiter...............................................................................................................................maximum number of iterations, optional: defaults to 100
+# x0................................................................................................................a starting point on an equilibrium manifold near a presumed hopf point
+# F................................................................................................................the augmented version of the RHS of (1): F(X)=f(u,lambda), X=[u;lambda]
+# Fx.......................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M......................................................................................................................................................the mass matrix of the system (1)
+# tol............................................................................................................tolerance of the method, optional: if not given it is assumed tol=10^(-6)
+# maxiter..........................................................................................................................maximum number of iterations, optional: defaults to 100
 # OUTPUTS
-# X....................................................fold point on the bifurcation diagram X=[x*;lambda*] where x* is an equilibrium of (1) and lambda is the value at which the fold happens
-# mu...........................................................................................................................................the hopf eigenvalue of system (1) at the point X
-# vector................................................the eigenvector of the jacobian of system (1) associated with the hopf eigenvalue (can be used to determine the stability of the cycle)
-# flag........................................................................................................a string telling you if the method has converged and if so in how many iterations
+# X...............................................fold point on the bifurcation diagram X=[x*;lambda*] where x* is an equilibrium of (1) and lambda is the value at which the fold happens
+# mu......................................................................................................................................the hopf eigenvalue of system (1) at the point X
+# vector...........................................the eigenvector of the jacobian of system (1) associated with the hopf eigenvalue (can be used to determine the stability of the cycle)
+# flag...................................................................................................a string telling you if the method has converged and if so in how many iterations
 function locate_hopf(x0,F,Fx;M=eye(length(x0)-2),tol=1e-6,maxiter=100)
     Ftilde(x)=min_aug_system_hopf(x,F,Fx;M=M);
     Fxtilde(x)=min_aug_jacobian_hopf(x,F,Fx;M=M);
@@ -274,29 +258,24 @@ function locate_hopf(x0,F,Fx;M=eye(length(x0)-2),tol=1e-6,maxiter=100)
     X=X.x;
     omega=X[end];
     X=X[1:end-1];
-    Df=Fx(X)[:,1:end-1]-M*1.0im*omega;
-    if size(Fx(X),1)<5
-        dummy=eigen(Df);
-        accu=minimum(abs.(dummy.values));
-        vector=eigen(Df).vectors[:,argmin(abs.(dummy.values))];
-    else
-        accu,vector=eigs(Df,nev=1,which=:SM);
-    end
+    Df=Fx(X)[:,1:end-1];
+    accu,vector,_=eigz(Df,1.0im*omega,M=M);
+    accu=accu[1];
     return (X=X, mu=accu+omega, vector=vector, flag=flag)
 end
 
-##################################################################################### FUNCTION: find_hopf #####################################################################################
+################################################################################## FUNCTION:  find_hopf ##################################################################################
 #                                                 Finds approximate hopf points in a system using the equilibrium manifold as initial guess
 # INPUTS
-# Branch.......................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
-# Fx.........................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
-# M..........................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
-# tol...............................................................................................................The tolerance with which we want to find the hopf points (defaults to 1e-6)
-# maxiter............................................................................................................The maximum number of iterations for the mesp algorithms (defaults to Inf)
-# k....................................................................................................................The size of the projected problem in the mesp2 algorithm (defaults to 2)
+# Branch..................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
+# Fx....................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
+# M.....................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
+# tol..........................................................................................................The tolerance with which we want to find the hopf points (defaults to 1e-6)
+# maxiter.......................................................................................................The maximum number of iterations for the mesp algorithms (defaults to Inf)
+# k...............................................................................................................The size of the projected problem in the mesp2 algorithm (defaults to 2)
 # OUTPUTS
-# .approx_H.......................................................-...........................A matrix whose columns are X_i=[point on the equilibrium manifold; hopf_eigenvalue of this point]
-# .flag...............................................................................................A string telling the user if the method found any possible hopf points and if so how many
+# .approx_H..................................................-...........................A matrix whose columns are X_i=[point on the equilibrium manifold; hopf_eigenvalue of this point]
+# .flag..........................................................................................A string telling the user if the method found any possible hopf points and if so how many
 function find_hopf(Branch,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=100,k=2)
     avgstepsize=sum(norm.(eachcol(Branch[:,1:end-1]-Branch[:,2:end])))/size(Branch,2);
     avglambdadist=sum(abs.(Branch[end,1:end-1]-Branch[end,2:end]))/size(Branch,2);
@@ -370,7 +349,7 @@ function find_hopf(Branch,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=100,k=2)
     return (approx_H=approx_H,flag=flag)
 end
 
-################################################################################## FUNCTION:  analyse_branch ##################################################################################
+################################################################################ FUNCTION: analyse_branch ################################################################################
 #                                                          Performs exact location of Hopf, Fold and Branch points (in parallel*),
 #                                                             also returns the eigenvectors associated with the Hopf eigenvalues
 #                                                                 (which can be used to determine the stability of the cycle)
@@ -380,23 +359,23 @@ end
 #                                            *NOTE: the function alone won't run things in parallel unless you add new working processors and export
 #                                       the necessery information to these processors. For notes on how to do this, open the file "parallel_env_start.jl"
 # INPUTS
-# Branch..................................................................................................................................................the equilibrium branch to be analysed
-# F..........................................................................................................................the augmented version of the RHS of F(X)=f(u,lambda), X=[u;lambda]
-# Fx............................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
-# M.............................................................................................................................the mass matrix of the system (defaults to the identity matrix)
-# tol......................................................................................the tolerance used in all the methods (the same tolerance will be used everywhere, defaults to 1e-6)
-# maxiter...............................................................................................................................maximum number of iterations, optional: defaults to Inf
-# hopf...........................................................................a boolean telling the function if you want it to check for hopf points (true) or not (false), defaults to true
-# fold...........................................................................a boolean telling the function if you want it to check for fold points (true) or not (false), defaults to true
-# branchpoint..................................................................a boolean telling the function if you want it to check for branch points (true) or not (false), defaults to true
+# Branch.............................................................................................................................................the equilibrium branch to be analysed
+# F.....................................................................................................................the augmented version of the RHS of F(X)=f(u,lambda), X=[u;lambda]
+# Fx.......................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M........................................................................................................................the mass matrix of the system (defaults to the identity matrix)
+# tol.................................................................................the tolerance used in all the methods (the same tolerance will be used everywhere, defaults to 1e-6)
+# maxiter..........................................................................................................................maximum number of iterations, optional: defaults to Inf
+# hopf......................................................................a boolean telling the function if you want it to check for hopf points (true) or not (false), defaults to true
+# fold......................................................................a boolean telling the function if you want it to check for fold points (true) or not (false), defaults to true
+# branchpoint.............................................................a boolean telling the function if you want it to check for branch points (true) or not (false), defaults to true
 # OUTPUTS
-# .H..................................................................................................................................................................a named tuple containing:
-# .H.H.......................................................................................................................a matrix whose columns are Hopf points on the equilibrium manifold
-# .H.V..........................................................................a matrix whose columns are the eigenvectors of the non-augmented jacobian corresponding to the Hopf eigenvalues
-# .LP........................................................................................................................a matrix whose columns are Fold points on the equilibrium manifold
-# .BP.................................................................................................................................................................a named tuple containing:
-# .BP.BP...................................................................................................................a matrix whose columns are Branch points on the equilibrium manifold
-# .BP.tangents.......................................................................a matrix whose columns are the tangents to the equilibrium manifold in the direction of the current branch
+# .H.............................................................................................................................................................a named tuple containing:
+# .H.H..................................................................................................................a matrix whose columns are Hopf points on the equilibrium manifold
+# .H.V.....................................................................a matrix whose columns are the eigenvectors of the non-augmented jacobian corresponding to the Hopf eigenvalues
+# .LP...................................................................................................................a matrix whose columns are Fold points on the equilibrium manifold
+# .BP............................................................................................................................................................a named tuple containing:
+# .BP.BP..............................................................................................................a matrix whose columns are Branch points on the equilibrium manifold
+# .BP.tangents..................................................................a matrix whose columns are the tangents to the equilibrium manifold in the direction of the current branch
 function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf,k=2,hopf=true,fold=true,branchpoint=true)
     if hopf==true
         task1=@spawn begin
