@@ -40,7 +40,7 @@ bifurcation_points=analyse_branch(Branch,F,DF,tol=tolerance,maxiter=maximum_numb
 # normally here you should check that bifurcation_points contains hopf, fold and/or branchpoints. In this case we know the Lorenz system, so we know we'll find all three types of singularity
 hopf_points=bifurcation_points.H.H; # extract the fold
 scatter!([hopf_points[end,:]],[hopf_points[2,:]],ms=4,label="H")
-fold_points=bifurcation_points.LP # extract the hopfs
+fold_points=bifurcation_points.LP.LP # extract the hopfs
 scatter!([fold_points[end,:]],[fold_points[2,:]],ms=4,label="LP")
 branch_points=bifurcation_points.BP.BP # extract the branchpoints
 scatter!([branch_points[end,:]],[branch_points[2,:]],ms=4,label="BP")

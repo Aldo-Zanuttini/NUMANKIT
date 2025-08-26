@@ -1,3 +1,6 @@
+# to determine wether or not the cycles resulting from the hopf bifurcations are stable or unstable, one can attempt to look at the first lyapunov coefficient, this is already provided by the analyse_branch() function and can be checked with
+show(string("first lyapunov coefficients=",bifurcation_points.H.l1))
+# in this case it would seem that the cycles are unstable because both of the first lyapunov coefficients are positive, however this is not always a reliable estimate, so we proceed to check using the eigenvectors
 # the analyse_branch() function also returns the eigenvector associated with one of the hopf eigenvalues for each hopf bifurcation discovered. To get this we do:
 critical_eigenvector1=bifurcation_points.H.V[:,1];
 # a point on the cycle is now of the form X=X*+epsilon*(real(critical_eigenvector1)*cos(theta)+imag(critical_eigenvector1)*sin(theta)) for theta arbitrary, and where X* is the actual equilibrium and epsilon=sqrt(abs(lambda-lambda_c)) is the distance from the true parameter value at which the bifurcation happens. Let us then define
