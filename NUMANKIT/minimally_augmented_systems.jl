@@ -139,5 +139,4 @@ function min_aug_jacobian_hopf(x,F,Fx;M=eye(length(x)-2))
     gprime2=imag(gprime);
     DG=[Fx(x) zeros(n);gprime1;gprime2]
     return DG
-
 end

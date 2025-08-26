@@ -219,7 +219,7 @@ function HP_jd(A, lambda; v0=rand(size(A,1)), M=eye(size(A,1)), tol=BigFloat(1e-
                 u=Float64.(real(u))+im*Float64.(imag(u))
                 u=u/norm(u)
                 theta=Float64(real(theta))+im*Float64(imag(theta))
-                return (vector=u, value=theta, error=res, converged=true)
+                return (vectors=u, values=theta, error=res, converged=true)
             end
             if k < maxsubspace
                 P=(eye(size(A,1))-M*u*u')*(A - lambda*M )*(eye(size(A,1))-u*u'*M)
@@ -240,7 +240,7 @@ function HP_jd(A, lambda; v0=rand(size(A,1)), M=eye(size(A,1)), tol=BigFloat(1e-
     u=u/norm(u)
     theta=ritz_values[best_idx]
     theta=Float64(real(theta))+im*Float64(imag(theta))
-    return (vector=u, value=theta, error=residuals[best_idx], converged=false)
+    return (vectors=u, values=theta, error=residuals[best_idx], converged=false)
 end
 
 ################################################################################### FUNCTION:  HP_eigs ###################################################################################
@@ -285,5 +285,5 @@ function HP_eigs(A, lambda; v0=rand(size(A,1)), M=eye(size(A,1)),  tol=BigFloat(
     else
         conv=false
     end
-    return (vector=v, value=lambda, error=err, converged=conv)
+    return (vectors=v, values=lambda, error=err, converged=conv)
 end

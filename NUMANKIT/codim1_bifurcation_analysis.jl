@@ -256,12 +256,13 @@ function locate_hopf(x0,F,Fx;M=eye(length(x0)-2),tol=1e-6,maxiter=100)
     X=newton(x0,Ftilde,Fxtilde,tol,maxiter);
     flag=X.flag;
     X=X.x;
+    H=X;
     omega=X[end];
     X=X[1:end-1];
     Df=Fx(X)[:,1:end-1];
     accu,vector,_=eigz(Df,1.0im*omega,M=M);
     accu=accu[1];
-    return (X=X, mu=accu+omega, vector=vector, flag=flag)
+    return (H=H, mu=imag(accu), vector=vector, flag=flag)
 end
 
 ################################################################################## FUNCTION:  find_hopf ##################################################################################
@@ -349,6 +350,89 @@ function find_hopf(Branch,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=100,k=2)
     return (approx_H=approx_H,flag=flag)
 end
 
+########################################################################## FUNCTION:  get_quadratic_coefficient ##########################################################################
+#                                                             Near a Fold bifurcation, a dynamical system can be written as
+#                                                                                   x'=lambda+b*x^2
+#                                                                where lambda is the bifurcation/cotinuation parameter,
+#                                                        and b is a coefficient involved in the (non)-degeneracy of the above
+#                                                        This function provides a computation of the quadratic coefficient b.
+# INPUTS
+# F.....................................................................................................................the augmented version of the RHS of F(X)=f(u,lambda), X=[u;lambda]
+# Fx.......................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M........................................................................................................................the mass matrix of the system (defaults to the identity matrix)
+# LP.................................................................................the fold point H=[state; bifurcation parameter value] whose quadratic coefficient is to be calculated
+# OUTPUTS
+# l1...................................................................................................................................................the estimated quadratic coefficient
+function get_quadratic_coefficient(F,Fx,LP;M=eye(length(LP)-1))
+    lambda=LP[end];
+    X=LP[1:end-1];
+    A=Fx([X;lambda])[:,1:length(X)];
+    q=matdiv(A,X);
+    p=matdiv(A',X);
+    qe=zeros(length(q));
+    pe=qe;
+    qe[argmax(abs.(q))]=1;
+    pe[argmax(abs.(p))]=1;
+    qe=sparse(qe);
+    pe=sparse(pe);
+    q=([A qe; qe' 0]\[zeros(length(q));1])[1:end-1];
+    p=([A pe; pe' 0]\[zeros(length(p));1])[1:end-1];
+    p=q';
+    q=q/norm(q);
+    p=p/dot(p,q);
+    B(u,v)=(dirder(x -> F([x;lambda]),X,u+v,2)-dirder(x -> F([x;lambda]),X,u-v,2))*0.25
+    b=0.5*dot(p,B(q,q));
+    return b
+end
+
+########################################################################### FUNCTION: get_lyapunov_coefficient ###########################################################################
+#                                                          Near a Hopf bifurcation, a dynamical system can be written as
+#                                                                             z'=(lambda+i*omega)*z+c*z*|z|^2
+#                                                        where z is the amplitude, lambda is the bifurcation/cotinuation parameter,
+#                                                               omega is the imaginary component of the critical eigenvalue
+#                                                  and c=l1+i*omega1 where omega1 determines how the frequency changes with the amplitude
+#                                                     and l1 is referred to as the "first lyapunov coefficient" and determines whether
+#                                                     the cycles born at the hopf bifurcation are stable (l1<0, => supercritical hopf)
+#                                                         or unstable (l1>0, => subcritical hopf). The case l1=0 is degenerate and
+#                                                                        indicates a generalized hopf bifurcation.
+#                                                        This function provides a computation of the first lyapunov coefficient l1.
+#
+#            NOTE: the calculation is approximate and not always reliable for classification purposes (it is only reliable enough to detect a generalized hopf bifurcation),
+#                                                      I recommend checking dynamical behaviour via integration to confirm the output.
+# INPUTS
+# F.....................................................................................................................the augmented version of the RHS of F(X)=f(u,lambda), X=[u;lambda]
+# Fx.......................................................................................................the augmented Jacobian: Fx(X)=[Df(u,lambda) df(u,lambda)/dlambda], X=[u;lambda]
+# M........................................................................................................................the mass matrix of the system (defaults to the identity matrix)
+# H......................................the hopf point H=[state; bifurcation parameter value; imaginary part of critical eigenvalue] whose first lyapunov coefficient is to be calculated
+# OUTPUTS
+# l1..............................................................................................................................................the estimated first lyapunov coefficient
+function get_lyapunov_coefficient(F,Fx,H;M=eye(length(H)-2))
+    omega=abs(H[end]);
+    lambda=H[end-1];
+    X=H[1:end-2];
+    A=Fx([X;lambda])[:,1:length(X)];
+    q=matdiv(A-M*1.0im+eye(length(X))*eps(Float64),X)
+    p=matdiv(A'+M'*1.0im+eye(length(X))*eps(Float64),X)
+    qe=zeros(length(X));
+    pe=qe;
+    idx1=argmax(abs.(q))
+    idx2=argmax(abs.(p))
+    qe[idx1]=1;
+    pe[idx2]=1;
+    qe=sparse(qe);
+    pe=sparse(pe);
+    q=([A-M*1.0im*omega qe; qe' 0]\[zeros(length(X));1])[1:end-1]
+    p=([A'+M'*1.0im*omega pe; pe' 0]\[zeros(length(X));1])[1:end-1]
+    q=q/norm(q);
+    p=p/dot(p,q);
+    B(u,v)=(dirder(x -> F([x;lambda]),X,u+v,2)-dirder(x -> F([x;lambda]),X,u-v,2))*0.25
+    C(u,v,w)=(dirder(x -> F([x;lambda]),X,u+v+w,3)-dirder(x -> F([x;lambda]),X,u+v,3)-dirder(x -> F([x;lambda]),X,v+w,3)-dirder(x -> F([x;lambda]),X,u+w,3)+dirder(x -> F([x;lambda]),X,u,3)+dirder(x -> F([x;lambda]),X,v,3)+dirder(x -> F([x;lambda]),X,w,3))/48;
+    h11=-A\B(q,conj(q));
+    h20=(2.0im*omega*M-A)\B(q,q);
+    l1=real(dot(p,C(q,q,conj(q))+2*B(q,h11)+B(conj(q),h20)))/(2*omega);
+    return l1
+end
+
 ################################################################################ FUNCTION: analyse_branch ################################################################################
 #                                                          Performs exact location of Hopf, Fold and Branch points (in parallel*),
 #                                                             also returns the eigenvectors associated with the Hopf eigenvalues
@@ -372,35 +456,46 @@ end
 # .H.............................................................................................................................................................a named tuple containing:
 # .H.H..................................................................................................................a matrix whose columns are Hopf points on the equilibrium manifold
 # .H.V.....................................................................a matrix whose columns are the eigenvectors of the non-augmented jacobian corresponding to the Hopf eigenvalues
-# .LP...................................................................................................................a matrix whose columns are Fold points on the equilibrium manifold
+# .H.l1............................................................................................a vector containing the first lyapunov coefficients of the Hopf points which were found
+# .LP............................................................................................................................................................a named tuple containing:
+# .LP.LP................................................................................................................a matrix whose columns are Fold points on the equilibrium manifold
+# .LP.b.................................................................................................a vector containing the quadratic coefficients of the Fold points which were found
 # .BP............................................................................................................................................................a named tuple containing:
 # .BP.BP..............................................................................................................a matrix whose columns are Branch points on the equilibrium manifold
 # .BP.tangents..................................................................a matrix whose columns are the tangents to the equilibrium manifold in the direction of the current branch
 function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf,k=2,hopf=true,fold=true,branchpoint=true)
     if hopf==true
         task1=@spawn begin
-            H=zeros(size(Branch,1),0);
+            H=zeros(size(Branch,1)+1,0);
+            omega=zeros(0);
             eigenvectors=zeros(size(Branch,1)-1,0)
             detected_hopf=find_hopf(Branch,DF;M=M,tol=tol,maxiter=maxiter,k=k)
             if detected_hopf.flag!="not converged"
                 approx_H=detected_hopf.approx_H;
                 for i=1:size(approx_H,2)
                     reply=locate_hopf(approx_H[:,i],F,Fx,M=M,tol=tol,maxiter=maxiter)
-                    H=[H reply.X]
+                    H=[H reply.H];
+                    omega=[omega; reply.mu]
                     eigenvectors=[eigenvectors reply.vector]
                 end
                 tokeep=trues(size(H,2))
                 for i=1:size(H,2)
                     for j=i+1:size(H,2)
-                        if norm(H[:,i]-H[:,j])<tol
+                        if norm(H[1:end-1,i]-H[1:end-1,j])<tol
                             tokeep[j]=false
                         end
                     end
                 end
                 H=H[:,tokeep]
+                omega=omega[tokeep]
                 eigenvectors=eigenvectors[:,tokeep]
             end
-            return (H=H,V=eigenvectors)
+            l1=zeros(size(H,2));
+            for i=1:size(H,2)
+                l1[i]=get_lyapunov_coefficient(F,Fx,[H[1:end-1,i];omega[i]];M=M);
+            end
+            H=H[1:end-1,:]
+            return (H=H,V=eigenvectors,omega=omega,l1=l1)
         end
     end
 
@@ -451,7 +546,11 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf
                     end
                 end
             end
-            return LP
+            b=zeros(size(LP,2))
+            for i=1:size(LP,2)
+                b[i]=get_quadratic_coefficient(F,Fx,LP[:,i];M=M)
+            end
+            return (LP=LP,b=b)
         end
     end
 
@@ -472,8 +571,8 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf
     end
 
     if branchpoint==true
-        pitchfork_indices=falses(size(LP,2))
-        for i=1:size(LP,2)
+        pitchfork_indices=falses(size(LP.LP,2))
+        for i=1:size(LP.LP,2)
             test=false
             for j=1:size(BP.BP,2)
                 if norm(BP.BP[i]-LP[j])<=tol
@@ -495,7 +594,7 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf
         end
         branchpoints=BP.BP[:,indices]
         tangents=BP.tangents[:,indices]
-        pitchforks=LP[:,pitchfork_indices]
+        pitchforks=LP.LP[:,pitchfork_indices]
         branchpoints=[BP.BP pitchforks]
         pitchfork_tangents=zeros(size(pitchforks))
         for i=1:size(pitchforks,2)
