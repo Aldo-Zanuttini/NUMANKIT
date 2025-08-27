@@ -287,3 +287,26 @@ function HP_eigs(A, lambda; v0=rand(size(A,1)), M=eye(size(A,1)),  tol=BigFloat(
     end
     return (vectors=v, values=lambda, error=err, converged=conv)
 end
+
+########################################################################### FUNCTION: get_eigenvector_bordered ###########################################################################
+#                                   Obtains the generalized eigenvector of a matrix A corresponding to an eigenvalue lambda using a bordering technique
+# INPUTS (mandatory)
+# A......................................................................................................................................................LHS matrix (typically a Jacobian)
+# lambda.........................................................................................................the known eigenvalue of A whose corresponding eigenvector we want to find
+# INPUTS (optional)
+# M..................................................................................................................RHS matrix (typically a mass matrix, defaults to the identity matrix)
+# maxiter..............................................................................................the maximum number of iterations (defaults to 100, only used for iterative methods)
+# tol.............................................................................................the desired tolerance of the method (defaults to 1e-12, only used for iterative methods)
+# v0...........................................................................an initial guess for the eigenvector, only applies to the high-precision methods (the last two in the file)
+# OUTPUTS
+# a named tuple with names:
+# vectors.......................................................................................................................................................the calculated eigenvector
+# error................................................................................................................................the error with which the eigenvector was calculated
+function get_eigenvector_bordered(A,lambda;M=eye(size(A,1)),v0=rand(size(A,1)))
+    v=matdiv(A-lambda*M+eye(size(A,1))*eps(Float64),v0);
+    ve=zeros(size(A,1));
+    ve[argmax(abs.(v))]=1;
+    v=([A-lambda*M ve; ve' 0]\[zeros(size(A,1));1])[1:end-1];
+    err=norm((A-lambda*M)*v)
+    return (vector=v, error=err)
+end   
