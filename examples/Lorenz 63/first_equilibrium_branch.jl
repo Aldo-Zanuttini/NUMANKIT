@@ -38,9 +38,9 @@ bifurcation_points=analyse_branch(Branch,F,DF,tol=tolerance,maxiter=maximum_numb
 #### NOTE: the above can be done in parallel for hopf, branchpoint and fold. This could save you a lot of time potentially. To do this, run the "parallel_env_start.jl" file with the necessary adjustments (specify the absolute path to your "NUMANKIT" folder), please remember to reset the number of working processors to 1 when you're done doing the analysis!!! This can be done via the "rmprocs(workers())" command.
 
 # normally here you should check that bifurcation_points contains hopf, fold and/or branchpoints. In this case we know the Lorenz system, so we know we'll find all three types of singularity
-hopf_points=bifurcation_points.H.H; # extract the fold
+hopf_points=bifurcation_points.H.H[1:end-1,:]; # extract the hopf points without the critical eigenvalue
 scatter!([hopf_points[end,:]],[hopf_points[2,:]],ms=4,label="H")
-fold_points=bifurcation_points.LP.LP # extract the hopfs
+fold_points=bifurcation_points.LP.LP # extract the fold
 scatter!([fold_points[end,:]],[fold_points[2,:]],ms=4,label="LP")
 branch_points=bifurcation_points.BP.BP # extract the branchpoints
 scatter!([branch_points[end,:]],[branch_points[2,:]],ms=4,label="BP")
