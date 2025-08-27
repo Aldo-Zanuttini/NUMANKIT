@@ -11,7 +11,7 @@ epsilon=(tolerance/(length(X0)-1))^0.5; # recall that we defined a tolerance and
 perturbation=epsilon+1e-12;
 x0_time=perturbation*(v*cos(theta)+w*sin(theta))
 # next we extract the parameter value at which hopf happens:
-rho=bifurcation_points.H.H[end,1];
+rho=bifurcation_points.H.H[end-1,1];
 # we then define the system for time integration
 f_time(x)=f(x,rho,sigma,beta) # (recall that we defined f and Df in the "my_system.jl" file...)
 Df_time(x)=Df(x,rho,sigma,beta)
