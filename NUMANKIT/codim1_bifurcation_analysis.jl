@@ -255,14 +255,12 @@ function locate_hopf(x0,F,Fx;M=eye(length(x0)-2),tol=1e-6,maxiter=100)
     Fxtilde(x)=min_aug_jacobian_hopf(x,F,Fx;M=M);
     X=newton(x0,Ftilde,Fxtilde,tol,maxiter);
     flag=X.flag;
-    X=X.x;
-    H=X;
-    omega=X[end];
-    X=X[1:end-1];
+    H=X.x;
+    omega=H[end];
+    X=X.x[1:end-1];
     Df=Fx(X)[:,1:end-1];
-    accu,vector,_=eigz(Df,1.0im*omega,M=M);
-    accu=accu[1];
-    return (H=H, mu=imag(accu), vector=vector, flag=flag)
+    vector=eigz(Df,1.0im*omega,M=M)[2];
+    return (H=H, mu=omega, vector=vector, flag=flag)
 end
 
 ################################################################################## FUNCTION:  find_hopf ##################################################################################
@@ -492,9 +490,8 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf
             end
             l1=zeros(size(H,2));
             for i=1:size(H,2)
-                l1[i]=get_lyapunov_coefficient(F,Fx,[H[1:end-1,i];omega[i]];M=M);
+                l1[i]=get_lyapunov_coefficient(F,Fx,H[:,i];M=M);
             end
-            H=H[1:end-1,:]
             return (H=H,V=eigenvectors,omega=omega,l1=l1)
         end
     end
