@@ -27,8 +27,9 @@ ylabel!("x")
 
 # analyse the branch:
 # define the parameters for the analyse_branch function
-tolerance=1e-6; # accuracy of the bifurcation points detected
+tolerance=1e-10; # accuracy of the bifurcation points detected
 maximum_number_of_iterations=500; # maximum number of iterations (for all methods used)
+hopf_method="mesp" # this is the method which we will be using to detect hopf bifurcations. For smaller problems typically "traditional" (no Meerbergen Spence algorithm) is preferable, however for illustration purposes we'll go overkill this time
 k=2; # size of the projected problem in the Meerbergen Spence algorithm (see: https://doi.org/10.1137/110827600)
 hopf=true; # look for Hopf bifurcations
 branchpoint=true; # look for branchpoints
