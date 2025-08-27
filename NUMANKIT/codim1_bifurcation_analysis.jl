@@ -348,6 +348,61 @@ function find_hopf(Branch,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=100,k=2)
     return (approx_H=approx_H,flag=flag)
 end
 
+################################################################################# FUNCTION:  detect_hopf #################################################################################
+#                                                              A dynamical system with associated eigenproblems of the form
+#                                                                                    Df*x=lambda*M*x
+#                                                               undergoes a hopf bifurcation when the bialternate product
+#                                                                                      Df⊗M+M⊗Df
+#                                                   (where ⊗ denotes kronecker product)  has determinant zero (equiv. has a zero eigenvalue).
+#                                   This translates in the eigenproblem: (Df⊗M+M⊗Df)x=0, which has an equivalent formulation in terms of lyapunov equations:
+#                                                                                   Df*X*M'+M*X*Df'=0.
+#                         This function exploits this equivalence by solving the above lyapunov equation using iterative methods in order to detect hopf bifurcations.
+# INPUTS
+# Branch..................................................................................................................A matrix whose columns are equilibria on an equilibrium manifold
+# Fx....................................................................The augmented jacobian (for continuation of equilibria) of the system whose equilibrium manifold is to be analysed
+# M.....................................................................................................................The mass matrix of the system (optional, if not given assumes M=I)
+# tol..........................................................................................................The tolerance with which we want to find the hopf points (defaults to 1e-6)
+# maxiter.......................................................................................................The maximum number of iterations for the mesp algorithms (defaults to Inf)
+# OUTPUTS
+# .approx_H..................................................-...........................A matrix whose columns are X_i=[point on the equilibrium manifold; hopf_eigenvalue of this point]
+# .flag..........................................................................................A string telling the user if the method found any possible hopf points and if so how many
+function detect_hopf(Fx,Branch;M=eye(size(Branch,1)-1),tol=1e-16,maxiter=100)
+    n=size(Branch,2);
+    possible_hopf_indices=falses(n);
+    lambdaOld=1;
+    values=zeros(n);
+    X=rand(size(A,1),size(A,2));
+    X=X/norm(X);
+    for i=1:n
+        A=Fx(Branch[:,i])[:,1:end-1];
+        j=1;
+        lambdaNew=1;
+        while norm(A*X*M'+X'*A*M+lambdaNew*X)>tol
+            X=lyapci(A,M,-lambdaNew*X,abstol=tol,reltol=tol,maxiter=maxiter)[1];
+            X=X/norm(X);
+            lambdaNew=-tr(A*X*M'+M*X*A')/norm(X'*X);
+            j=j+1;
+            if j>maxiter
+                break
+            end
+        end
+        if i>1
+            if sign(real(lambdaNew))*sign(real(lambdaOld))==-1 && abs(lambdaNew)<1
+                possible_hopf_indices[i]=true;
+                V,_=truncated_eigendecomp(X,2);
+                values[i]=imag(eigz(V'*A*V,Inf,M=V'*M*V)[1][1])
+            end
+        end
+        lambdaOld=lambdaNew;
+    end
+    if sum(possible_hopf_indices)==0
+        flag="not converged";
+    else
+        flag=string(sum(possible_hopf_indices), " approximate hopf points found");
+    end
+    return (approx_H=[(Branch[:,possible_hopf_indices]+Branch[:,[possible_hopf_indices[2:end]; false]])/2; values[possible_hopf_indices]'], flag=flag)
+end
+
 ########################################################################## FUNCTION:  get_quadratic_coefficient ##########################################################################
 #                                                             Near a Fold bifurcation, a dynamical system can be written as
 #                                                                                   x'=lambda+b*x^2
@@ -447,6 +502,9 @@ end
 # M........................................................................................................................the mass matrix of the system (defaults to the identity matrix)
 # tol.................................................................................the tolerance used in all the methods (the same tolerance will be used everywhere, defaults to 1e-6)
 # maxiter..........................................................................................................................maximum number of iterations, optional: defaults to Inf
+# k............................order of the projection in the Meerbergen Spence (mesp) algorithm (see the first two functions in this file and https://mopnet.cf.ac.uk/SIMAX_accepted.pdf)
+# hopf_method.........a string taking values: {"auto", "mesp", "traditional"}, defaults to "auto" (in which case the method is chosen based on problem size), speficies whether to use the
+#                                                                                           functions "find_hopf()" or "detect_hopf()" from this file in order to detect hopf bifurcations
 # hopf......................................................................a boolean telling the function if you want it to check for hopf points (true) or not (false), defaults to true
 # fold......................................................................a boolean telling the function if you want it to check for fold points (true) or not (false), defaults to true
 # branchpoint.............................................................a boolean telling the function if you want it to check for branch points (true) or not (false), defaults to true
@@ -461,13 +519,24 @@ end
 # .BP............................................................................................................................................................a named tuple containing:
 # .BP.BP..............................................................................................................a matrix whose columns are Branch points on the equilibrium manifold
 # .BP.tangents..................................................................a matrix whose columns are the tangents to the equilibrium manifold in the direction of the current branch
-function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf,k=2,hopf=true,fold=true,branchpoint=true)
+function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf,k=2,hopf_method="auto",hopf=true,fold=true,branchpoint=true)
     if hopf==true
         task1=@spawn begin
+            if hopf_method=="auto"
+                if size(Branch,1)>=1000
+                    hopf_method="mesp"
+                else
+                    hopf_method="traditional"
+                end
+            end
             H=zeros(size(Branch,1)+1,0);
             omega=zeros(0);
             eigenvectors=zeros(size(Branch,1)-1,0)
-            detected_hopf=find_hopf(Branch,DF;M=M,tol=tol,maxiter=maxiter,k=k)
+            if hopf_method=="mesp"
+                detected_hopf=find_hopf(Branch,DF;M=M,tol=tol,maxiter=maxiter,k=k)
+            elseif hopf_method=="traditional"
+                detected_hopf=detect_hopf(DF,Branch;M=M,tol=tol,maxiter=maxiter)
+            end
             if detected_hopf.flag!="not converged"
                 approx_H=detected_hopf.approx_H;
                 for i=1:size(approx_H,2)
