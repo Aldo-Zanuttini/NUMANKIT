@@ -371,7 +371,7 @@ function detect_hopf(Fx,Branch;M=eye(size(Branch,1)-1),tol=1e-16,maxiter=100)
     possible_hopf_indices=falses(n);
     lambdaOld=1;
     values=zeros(n);
-    X=rand(size(A,1),size(A,2));
+    X=rand(size(Branch,1)-1,size(Branch,1)-1);
     X=X/norm(X);
     for i=1:n
         A=Fx(Branch[:,i])[:,1:end-1];
@@ -675,4 +675,5 @@ function analyse_branch(Branch,F,Fx;M=eye(size(Branch,1)-1),tol=1e-6,maxiter=Inf
         BP=(BP=branchpoints,tangents=tangents)
     end
     return (H=H,LP=LP,BP=BP)
+
 end
