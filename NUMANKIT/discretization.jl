@@ -101,7 +101,7 @@ function discretize(operator,grid,boundary_conditions)
         return (convection_plus= spdiagm(0 => Dplus, 1 => U), convection_minus= spdiagm(-1 => L, 0 => Dminus))
     elseif operator=="diffusion"
         components=discretize("convection",grid,boundary_conditions);
-        return components.convection_plus-components.convection_minus
+        return (components.convection_plus-components.convection_minus)*2 ./(grid.volumes_plus+grid.volumes_minus)
     end
 end
 
@@ -173,4 +173,5 @@ function meshgrid(x,y,z)
     y=kron(x,ones(length(z)));
     z=kron(kron(ones(length(x)),ones(length(z))),z);
     return (X=x,Y=y,Z=z)
+
 end
